@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevSecOps Security Risk Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ALL CSS HERE */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0F172A;
+      color: #F1F5F9;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* SECTION 1 — Header bar (full width, sticky) */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: #1E293B;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+      height: 64px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .shield-icon {
+      font-size: 1.5rem;
+    }
+
+    .header-titles {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-main {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #06B6D4;
+    }
+
+    .header-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: #94A3B8;
+      margin-top: 2px;
+    }
+
+    .header-right {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-badge {
+      background-color: #0F172A;
+      color: #94A3B8;
+      border: 1px solid #334155;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* SECTION 2 — Mode toggle bar (full width, below header) */
+    .mode-bar {
+      background-color: #1E293B;
+      border-bottom: 1px solid #334155;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .mode-toggle-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      border-radius: 999px;
+      padding: 6px 20px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      background-color: transparent;
+      color: #94A3B8;
+      border: 1px solid #334155;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn:hover {
+      border-color: #06B6D4;
+      color: #F1F5F9;
+    }
+
+    .mode-btn-active {
+      background-color: #06B6D4;
+      color: #0F172A;
+      font-weight: 700;
+      border-color: #06B6D4;
+    }
+
+    .mode-btn-active:hover {
+      color: #0F172A;
+    }
+
+    .mode-desc {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      color: #94A3B8;
+      margin: 0;
+    }
+
+    /* SECTION 3 — Two-column main layout */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 40% 60%;
+      flex: 1;
+      min-height: calc(100vh - 128px); /* Adjust based on header + mode bar */
+    }
+
+    .input-panel {
+      background-color: #0F172A;
+      border-right: 1px solid #334155;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .results-panel {
+      background-color: #0F172A;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    /* Subsection divider style */
+    .param-group {
+      margin-bottom: 24px;
+    }
+
+    .param-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .param-group-line {
+      flex: 1;
+      height: 1px;
+      background-color: #334155;
+    }
+
+    .param-group-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: #64748B;
+      white-space: nowrap;
+      letter-spacing: 0.1em;
+    }
+
+    /* Param rows */
+    .param-row {
+      margin-bottom: 18px;
+    }
+
+    .param-label {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #F1F5F9;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .param-training-hint {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      color: #64748B;
+      margin-top: 4px;
+      display: block;
+    }
+
+    /* Button states in normal mode */
+    .btn-option {
+      background-color: #1E293B;
+      color: #94A3B8;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-option:hover {
+      border-color: #94A3B8;
+      color: #F1F5F9;
+    }
+
+    .btn-selected-attacker {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #EF4444;
+      border-color: #EF4444;
+    }
+
+    .btn-selected-defender {
+      background-color: rgba(6, 182, 212, 0.15);
+      color: #06B6D4;
+      border-color: #06B6D4;
+    }
+
+    .btn-selected-adaptation {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #F59E0B;
+      border-color: #F59E0B;
+    }
+
+    /* Advanced mode sliders styling */
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.9rem;
+      color: #06B6D4;
+      font-weight: 700;
+    }
+
+    .slider-input {
+      width: 100%;
+      accent-color: #06B6D4;
+      margin: 6px 0;
+    }
+
+    /* Advanced mode notice */
+    .adv-notice {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #F59E0B;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      margin-top: 16px;
+      line-height: 1.4;
+    }
+
+    /* Preset scenarios buttons */
+    .preset-section {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #334155;
+    }
+
+    .preset-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      color: #64748B;
+      margin-bottom: 8px;
+    }
+
+    .preset-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .preset-btn {
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border: 1px solid;
+      background-color: transparent;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn:hover {
+      filter: brightness(1.2);
+    }
+
+    .preset-danger {
+      background-color: rgba(239, 68, 68, 0.12);
+      color: #EF4444;
+      border-color: #EF4444;
+    }
+
+    .preset-success {
+      background-color: rgba(16, 185, 129, 0.12);
+      color: #10B981;
+      border-color: #10B981;
+    }
+
+    .preset-neutral {
+      background-color: rgba(6, 182, 212, 0.12);
+      color: #06B6D4;
+      border-color: #06B6D4;
+    }
+
+    .preset-critical {
+      background-color: rgba(124, 58, 237, 0.12);
+      color: #7C3AED;
+      border-color: #7C3AED;
+    }
+
+    /* PREDICT button */
+    .predict-btn {
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      background: linear-gradient(135deg, #06B6D4, #0284C7);
+      color: #0F172A;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: all 0.2s;
+    }
+
+    .predict-btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .predict-btn.loading {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .predict-btn.error {
+      background: #EF4444;
+      color: white;
+    }
+
+    .predict-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      color: #64748B;
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    /* Results cards styling */
+    .card {
+      background-color: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .card-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: #64748B;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .card-executive {
+      border-left: 4px solid #06B6D4;
+    }
+
+    .exec-timestamp {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      color: #64748B;
+    }
+
+    .exec-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .exec-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #1E293B;
+    }
+
+    .exec-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .exec-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      color: #94A3B8;
+      width: 40%;
+    }
+
+    .exec-value {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 0.82rem;
+      color: #F1F5F9;
+    }
+
+    .exec-recommendation {
+      color: #F59E0B;
+    }
+
+    /* predicted success gauge */
+    .gauge-value {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 2.4rem;
+      color: #06B6D4;
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .gauge-track {
+      height: 14px;
+      background-color: #334155;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      border-radius: 999px;
+      background-color: #06B6D4;
+      transition: width 0.8s ease;
+    }
+
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      color: #64748B;
+      margin-top: 6px;
+    }
+
+    .risk-badge-container {
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .risk-badge {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 6px 20px;
+      border-radius: 999px;
+      background-color: rgba(6, 182, 212, 0.1);
+      color: #06B6D4;
+      box-shadow: 0 0 12px currentColor;
+      transition: all 0.3s ease;
+    }
+
+    /* Model cards grid */
+    .model-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .model-card {
+      background-color: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .mc-label {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.68rem;
+      color: #64748B;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .mc-value {
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 1.4rem;
+      color: #06B6D4;
+    }
+
+    .mc-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      color: #94A3B8;
+      margin-top: 4px;
+    }
+
+    .reliability-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-align: center;
+      align-self: flex-start;
+    }
+
+    /* SHAP explainability chart */
+    .chart-container {
+      position: relative;
+      height: 260px;
+    }
+
+    .shap-base-note {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.72rem;
+      color: #64748B;
+      margin-top: 8px;
+    }
+
+    /* Scenario interpretation */
+    .scenario-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      color: #94A3B8;
+      line-height: 1.7;
+    }
+
+    /* Research Insights */
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .insight-card {
+      background-color: #0F172A;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .insight-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 0.65rem;
+      margin-bottom: 8px;
+    }
+
+    .insight-title {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #F1F5F9;
+      margin-bottom: 6px;
+    }
+
+    .insight-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      color: #94A3B8;
+      line-height: 1.6;
+    }
+
+    /* Placeholder */
+    .results-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: #64748B;
+      gap: 12px;
+      text-align: center;
+      border: 2px dashed #334155;
+      border-radius: 12px;
+      padding: 40px;
+    }
+
+    .placeholder-icon {
+      font-size: 3rem;
+    }
+
+    .placeholder-title {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      color: #94A3B8;
+    }
+
+    .placeholder-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    /* SECTION 4 — Research findings footer (collapsible) */
+    .research-footer {
+      background-color: #1E293B;
+      border-top: 1px solid #334155;
+      padding: 16px 24px;
+      margin-top: auto;
+    }
+
+    .footer-toggle {
+      background: none;
+      border: none;
+      color: #06B6D4;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+
+    .footer-toggle:hover {
+      text-decoration: underline;
+    }
+
+    .findings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .finding-card {
+      background-color: #0F172A;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .finding-badge {
+      display: inline-block;
+      color: white;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      font-size: 0.65rem;
+      margin-bottom: 8px;
+    }
+
+    .finding-card h4 {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #F1F5F9;
+      margin: 6px 0;
+    }
+
+    .finding-card p {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: #94A3B8;
+      line-height: 1.65;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SECTION 1 — Header bar (full width, sticky) -->
+  <header class="site-header">
+    <div class="header-left">
+      <span class="shield-icon">🛡</span>
+      <div class="header-titles">
+        <h1 class="header-main">DevSecOps Security Risk Predictor</h1>
+        <p class="header-sub">
+          Adaptive Attacker-Defender Simulation | FYP Research Project
+        </p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="header-badge">Model: XGBoost</span>
+      <span class="header-badge">R²: 0.7189</span>
+      <span class="header-badge">Dataset: 18,225 runs</span>
+    </div>
+  </header>
+
+  <!-- SECTION 2 — Mode toggle bar (full width, below header) -->
+  <div class="mode-bar">
+    <div class="mode-toggle-group">
+      <button id="btn-normal-mode" class="mode-btn mode-btn-active">Normal Mode</button>
+      <button id="btn-advanced-mode" class="mode-btn">Advanced Mode</button>
+    </div>
+    <p id="mode-description" class="mode-desc">
+      Normal Mode: click buttons to select valid training values only.
+      Predictions are fully reliable.
+    </p>
+  </div>
+
+  <!-- SECTION 3 — Two-column main layout -->
+  <main class="main-layout">
+    <aside class="input-panel">
+      <!-- left column — 40% width -->
+
+      <!-- Normal inputs container -->
+      <div id="normal-inputs">
+        <div class="param-group">
+          <div class="param-group-header">
+            <span class="param-group-line"></span>
+            <span class="param-group-title">ATTACKER PARAMETERS</span>
+            <span class="param-group-line"></span>
+          </div>
+          <div class="param-row" id="row_attacker_skill">
+            <label class="param-label">Attacker Skill</label>
+            <div class="btn-group" id="btngroup_attacker_skill">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.1, 0.3, 0.5, 0.7, 0.9]</span>
+          </div>
+          <div class="param-row" id="row_attacker_aggressiveness">
+            <label class="param-label">Attacker Aggressiveness</label>
+            <div class="btn-group" id="btngroup_attacker_aggressiveness">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.4, 0.7, 1.0]</span>
+          </div>
+          <div class="param-row" id="row_attacker_stealth">
+            <label class="param-label">Attacker Stealth</label>
+            <div class="btn-group" id="btngroup_attacker_stealth">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.1, 0.4, 0.7]</span>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <div class="param-group-header">
+            <span class="param-group-line"></span>
+            <span class="param-group-title">DEFENDER PARAMETERS</span>
+            <span class="param-group-line"></span>
+          </div>
+          <div class="param-row" id="row_defender_detection_rate">
+            <label class="param-label">Detection Rate</label>
+            <div class="btn-group" id="btngroup_defender_detection_rate">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.2, 0.5, 0.8]</span>
+          </div>
+          <div class="param-row" id="row_defender_patch_speed">
+            <label class="param-label">Patch Speed</label>
+            <div class="btn-group" id="btngroup_defender_patch_speed">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.2, 0.5, 0.8]</span>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <div class="param-group-header">
+            <span class="param-group-line"></span>
+            <span class="param-group-title">ADAPTATION PARAMETERS</span>
+            <span class="param-group-line"></span>
+          </div>
+          <div class="param-row" id="row_alpha">
+            <label class="param-label">Alpha (learning+)</label>
+            <div class="btn-group" id="btngroup_alpha">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.0, 0.2, 0.4]</span>
+          </div>
+          <div class="param-row" id="row_beta">
+            <label class="param-label">Beta (forgetting-)</label>
+            <div class="btn-group" id="btngroup_beta">
+              <!-- buttons injected by JS in Part 3 -->
+            </div>
+            <span class="param-training-hint">Training values: [0.05, 0.1, 0.2]</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced inputs container (initially hidden) -->
+      <div id="advanced-inputs" style="display:none">
+        <div class="param-group">
+          <div class="param-group-header">
+            <span class="param-group-line"></span>
+            <span class="param-group-title">ATTACKER PARAMETERS</span>
+            <span class="param-group-line"></span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Attacker Skill</label>
+              <span class="slider-value" id="val_adv_attacker_skill">0.70</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_attacker_skill"
+              min="0.0" max="1.0" step="0.01" value="0.70">
+            <span class="param-training-hint">Valid training values: 0.1, 0.3, 0.5, 0.7, 0.9</span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Attacker Aggressiveness</label>
+              <span class="slider-value" id="val_adv_attacker_aggressiveness">0.70</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_attacker_aggressiveness"
+              min="0.0" max="1.0" step="0.01" value="0.70">
+            <span class="param-training-hint">Valid training values: 0.4, 0.7, 1.0</span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Attacker Stealth</label>
+              <span class="slider-value" id="val_adv_attacker_stealth">0.40</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_attacker_stealth"
+              min="0.0" max="1.0" step="0.01" value="0.40">
+            <span class="param-training-hint">Valid training values: 0.1, 0.4, 0.7</span>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <div class="param-group-header">
+            <span class="param-group-line"></span>
+            <span class="param-group-title">DEFENDER PARAMETERS</span>
+            <span class="param-group-line"></span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Detection Rate</label>
+              <span class="slider-value" id="val_adv_defender_detection_rate">0.50</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_defender_detection_rate"
+              min="0.0" max="1.0" step="0.01" value="0.50">
+            <span class="param-training-hint">Valid training values: 0.2, 0.5, 0.8</span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Patch Speed</label>
+              <span class="slider-value" id="val_adv_defender_patch_speed">0.50</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_defender_patch_speed"
+              min="0.0" max="1.0" step="0.01" value="0.50">
+            <span class="param-training-hint">Valid training values: 0.2, 0.5, 0.8</span>
+          </div>
+        </div>
+
+        <div class="param-group">
+          <div class="param-group-header">
+            <span class="param-group-line"></span>
+            <span class="param-group-title">ADAPTATION PARAMETERS</span>
+            <span class="param-group-line"></span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Alpha (learning+)</label>
+              <span class="slider-value" id="val_adv_alpha">0.20</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_alpha"
+              min="0.0" max="1.0" step="0.01" value="0.20">
+            <span class="param-training-hint">Valid training values: 0.0, 0.2, 0.4</span>
+          </div>
+          <div class="param-row">
+            <div class="slider-label-row">
+              <label class="param-label">Beta (forgetting-)</label>
+              <span class="slider-value" id="val_adv_beta">0.10</span>
+            </div>
+            <input type="range" class="slider-input" id="adv_beta"
+              min="0.0" max="1.0" step="0.01" value="0.10">
+            <span class="param-training-hint">Valid training values: 0.05, 0.1, 0.2</span>
+          </div>
+        </div>
+
+        <div class="adv-notice">
+          ⚠ Advanced Mode accepts any value. Most will trigger EXTRAPOLATION WARNING
+          in the Prediction Reliability card. This is correct behaviour, not an error.
+        </div>
+      </div>
+
+      <!-- Preset scenario buttons -->
+      <div class="preset-section">
+        <p class="preset-label">Quick Scenarios</p>
+        <div class="preset-buttons">
+          <button class="preset-btn preset-danger" data-preset="strong_attacker">Strong Attacker</button>
+          <button class="preset-btn preset-success" data-preset="strong_defender">Strong Defender</button>
+          <button class="preset-btn preset-neutral" data-preset="balanced">Balanced</button>
+          <button class="preset-btn preset-critical" data-preset="worst_case">Worst Case</button>
+        </div>
+      </div>
+
+      <!-- PREDICT button -->
+      <button id="predict-btn" class="predict-btn">
+        PREDICT RISK
+      </button>
+      <p class="predict-sub">Powered by XGBoost — trained on 18,225 simulation runs</p>
+    </aside>
+
+    <section class="results-panel">
+      <!-- right column — 60% width -->
+
+      <!-- Placeholder (shown before first prediction) -->
+      <div id="results-placeholder" class="results-placeholder">
+        <div class="placeholder-icon">🔒</div>
+        <p class="placeholder-title">Run prediction to see security risk assessment</p>
+        <p class="placeholder-sub">
+          Use Normal Mode for training-faithful predictions.<br>
+          Use Advanced Mode to explore extrapolation behaviour.
+        </p>
+      </div>
+
+      <!-- Results container (hidden until first prediction) -->
+      <div id="results-container" style="display:none">
+
+        <!-- A: Executive Summary Card -->
+        <div class="card card-executive" id="card-executive">
+          <div class="card-header">
+            <span class="card-title">PREDICTION SUMMARY</span>
+            <span class="exec-timestamp" id="exec-timestamp">--</span>
+          </div>
+          <table class="exec-table">
+            <tr>
+              <td class="exec-label">Attack Success</td>
+              <td class="exec-value" id="exec-attack-success">--</td>
+            </tr>
+            <tr>
+              <td class="exec-label">Risk Level</td>
+              <td class="exec-value" id="exec-risk-level">--</td>
+            </tr>
+            <tr>
+              <td class="exec-label">Top Driver</td>
+              <td class="exec-value" id="exec-top-driver">--</td>
+            </tr>
+            <tr>
+              <td class="exec-label">Model Confidence</td>
+              <td class="exec-value" id="exec-confidence">--</td>
+            </tr>
+            <tr>
+              <td class="exec-label">Reliability</td>
+              <td class="exec-value" id="exec-reliability">--</td>
+            </tr>
+            <tr>
+              <td class="exec-label">Recommendation</td>
+              <td class="exec-value exec-recommendation" id="exec-recommendation">--</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- B: Risk gauge -->
+        <div class="card" id="card-gauge">
+          <div class="card-header">
+            <span class="card-title">PREDICTED ATTACK SUCCESS RATE</span>
+          </div>
+          <div class="gauge-value" id="gauge-value">--%</div>
+          <div class="gauge-track">
+            <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>LOW &lt;10%</span>
+            <span>MODERATE 10–20%</span>
+            <span>HIGH 20–30%</span>
+            <span>CRITICAL &gt;30%</span>
+          </div>
+          <div class="risk-badge-container">
+            <span class="risk-badge" id="risk-badge">--</span>
+          </div>
+        </div>
+
+        <!-- C: Four model cards -->
+        <div class="model-cards-grid">
+          <div class="model-card" id="card-xgb">
+            <div class="mc-label">XGBoost PRIMARY</div>
+            <div class="mc-value" id="mc-xgb-val">--</div>
+            <div class="mc-sub">R²=0.7189 ✓</div>
+          </div>
+          <div class="model-card" id="card-rf">
+            <div class="mc-label">Random Forest REFERENCE</div>
+            <div class="mc-value" id="mc-rf-val">--</div>
+            <div class="mc-sub">R²=0.6769</div>
+          </div>
+          <div class="model-card" id="card-confidence">
+            <div class="mc-label">Confidence</div>
+            <div class="mc-value" id="mc-conf-val">--</div>
+            <div class="mc-sub" id="mc-conf-note">--</div>
+          </div>
+          <div class="model-card" id="card-reliability">
+            <div class="mc-label">Prediction Reliability</div>
+            <div class="reliability-badge" id="reliability-badge">--</div>
+            <div class="mc-sub" id="reliability-note">--</div>
+          </div>
+        </div>
+
+        <!-- D: SHAP chart -->
+        <div class="card" id="card-shap">
+          <div class="card-header">
+            <span class="card-title">WHAT IS DRIVING THIS PREDICTION? (SHAP)</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="shap-chart"></canvas>
+          </div>
+          <p class="shap-base-note" id="shap-base-note">Base value: --</p>
+        </div>
+
+        <!-- E: Scenario interpretation -->
+        <div class="card" id="card-scenario">
+          <div class="card-header">
+            <span class="card-title">SCENARIO INTERPRETATION</span>
+          </div>
+          <p class="scenario-text" id="scenario-text">--</p>
+        </div>
+
+        <!-- F: Research Insights -->
+        <div class="card" id="card-insights">
+          <div class="card-header">
+            <span class="card-title">RESEARCH INSIGHTS</span>
+          </div>
+          <div class="insights-grid" id="insights-grid">
+            <!-- 3 cards injected by JS -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- SECTION 4 — Research findings footer (collapsible) -->
+  <footer class="research-footer">
+    <button id="toggle-footer" class="footer-toggle">
+      Research Findings Summary ▼
+    </button>
+    <div id="footer-content" class="footer-content" style="display:none">
+      <div class="findings-grid">
+
+        <div class="finding-card">
+          <div class="finding-badge" style="background:#7C3AED">RQ1</div>
+          <h4>Adaptation Effect</h4>
+          <p>Increasing alpha from 0 to 0.4 increased target fixation from 0.312 to 0.763
+          (+145%). Compromise counts remained stable (8.45→8.46), suggesting adaptation
+          changed attacker behaviour without significantly improving outcomes.</p>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-badge" style="background:#10B981">RQ2</div>
+          <h4>Defender Capability</h4>
+          <p>Patch Speed (r=0.35 with resilience) is substantially more important than
+          Detection Rate (r=−0.04). Invest in patching speed before detection improvements
+          for best security ROI.</p>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-badge" style="background:#F59E0B">RQ3</div>
+          <h4>Risk Combinations</h4>
+          <p>Attacker Skill=0.9 produces 0.31–0.32 attack success rate regardless of
+          detection rate. Skill dominates all other factors — the scenario heatmap
+          confirms skill drives rows, not columns.</p>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-badge" style="background:#06B6D4">RQ4</div>
+          <h4>ML Performance</h4>
+          <p>XGBoost R²=0.7189, RMSE=0.0603. 5-fold CV R²: 0.7204 ± 0.0051.
+          Low standard deviation confirms stability and no overfitting.
+          Trained on 18,225 BehaviorSpace simulation runs.</p>
+        </div>
+
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  // ============================================================
+  // DATA DEFINITIONS
+  // ============================================================
+
+  const VALID_VALUES = {
+    attacker_skill:          [0.1, 0.3, 0.5, 0.7, 0.9],
+    attacker_aggressiveness: [0.4, 0.7, 1.0],
+    attacker_stealth:        [0.1, 0.4, 0.7],
+    defender_detection_rate: [0.2, 0.5, 0.8],
+    defender_patch_speed:    [0.2, 0.5, 0.8],
+    alpha:                   [0.0, 0.2, 0.4],
+    beta:                    [0.05, 0.10, 0.20]
+  };
+
+  const FEATURE_LABELS = {
+    attacker_skill:          'Attacker Skill',
+    attacker_aggressiveness: 'Attacker Aggressiveness',
+    attacker_stealth:        'Attacker Stealth',
+    defender_detection_rate: 'Detection Rate',
+    defender_patch_speed:    'Patch Speed',
+    alpha:                   'Alpha (learning+)',
+    beta:                    'Beta (forgetting-)'
+  };
+
+  const TRAINING_HINTS = {
+    attacker_skill:          'Training values: 0.1, 0.3, 0.5, 0.7, 0.9',
+    attacker_aggressiveness: 'Training values: 0.4, 0.7, 1.0',
+    attacker_stealth:        'Training values: 0.1, 0.4, 0.7',
+    defender_detection_rate: 'Training values: 0.2, 0.5, 0.8',
+    defender_patch_speed:    'Training values: 0.2, 0.5, 0.8',
+    alpha:                   'Training values: 0.0, 0.2, 0.4',
+    beta:                    'Training values: 0.05, 0.10, 0.20'
+  };
+
+  // Which CSS class to apply when a button is selected
+  const BUTTON_CLASS = {
+    attacker_skill:          'btn-selected-attacker',
+    attacker_aggressiveness: 'btn-selected-attacker',
+    attacker_stealth:        'btn-selected-attacker',
+    defender_detection_rate: 'btn-selected-defender',
+    defender_patch_speed:    'btn-selected-defender',
+    alpha:                   'btn-selected-adaptation',
+    beta:                    'btn-selected-adaptation'
+  };
+
+  const DEFAULTS = {
+    attacker_skill: 0.7, attacker_aggressiveness: 0.7, attacker_stealth: 0.4,
+    defender_detection_rate: 0.5, defender_patch_speed: 0.5, alpha: 0.2, beta: 0.1
+  };
+
+  const PRESETS = {
+    strong_attacker: {
+      attacker_skill: 0.9, attacker_aggressiveness: 1.0, attacker_stealth: 0.7,
+      defender_detection_rate: 0.2, defender_patch_speed: 0.2, alpha: 0.4, beta: 0.05
+    },
+    strong_defender: {
+      attacker_skill: 0.3, attacker_aggressiveness: 0.4, attacker_stealth: 0.1,
+      defender_detection_rate: 0.8, defender_patch_speed: 0.8, alpha: 0.2, beta: 0.1
+    },
+    balanced: {
+      attacker_skill: 0.7, attacker_aggressiveness: 0.7, attacker_stealth: 0.4,
+      defender_detection_rate: 0.5, defender_patch_speed: 0.5, alpha: 0.2, beta: 0.1
+    },
+    worst_case: {
+      attacker_skill: 0.9, attacker_aggressiveness: 1.0, attacker_stealth: 0.7,
+      defender_detection_rate: 0.2, defender_patch_speed: 0.2, alpha: 0.4, beta: 0.05
+    }
+  };
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
+  let currentMode = 'normal';          // 'normal' | 'advanced'
+  let selectedValues = { ...DEFAULTS }; // current selections
+  let shapChartInstance = null;         // Chart.js instance reference
+
+  // ============================================================
+  // UTILITY
+  // ============================================================
+
+  function snapToNearest(value, validList) {
+    return validList.reduce((prev, curr) =>
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+    );
+  }
+
+  function formatPct(val) {
+    return (val * 100).toFixed(1) + '%';
+  }
+
+  function timestamp() {
+    const now = new Date();
+    return now.toLocaleTimeString('en-GB', { hour12: false });
+  }
+
+  // ============================================================
+  // BUILD NORMAL MODE BUTTON GROUPS
+  // ============================================================
+
+  function buildButtonGroups() {
+    Object.keys(VALID_VALUES).forEach(key => {
+      const container = document.getElementById('btngroup_' + key);
+      if (!container) return;
+      container.innerHTML = '';
+      VALID_VALUES[key].forEach(val => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-option';
+        btn.textContent = val.toString();
+        btn.dataset.key   = key;
+        btn.dataset.value = val;
+        btn.addEventListener('click', () => {
+          selectButton(key, val);
+        });
+        container.appendChild(btn);
+      });
+      // Apply default selection
+      selectButton(key, selectedValues[key], false);
+    });
+  }
+
+  function selectButton(key, value, updateState = true) {
+    if (updateState) selectedValues[key] = parseFloat(value);
+
+    const container = document.getElementById('btngroup_' + key);
+    if (!container) return;
+    const selectedClass = BUTTON_CLASS[key];
+
+    container.querySelectorAll('.btn-option').forEach(btn => {
+      const btnVal = parseFloat(btn.dataset.value);
+      const isMatch = Math.abs(btnVal - parseFloat(value)) < 1e-9;
+      btn.classList.remove('btn-selected-attacker','btn-selected-defender','btn-selected-adaptation');
+      if (isMatch) btn.classList.add(selectedClass);
+    });
+  }
+
+  // ============================================================
+  // MODE TOGGLE
+  // ============================================================
+
+  function switchMode(mode) {
+    currentMode = mode;
+
+    document.getElementById('btn-normal-mode').className =
+      'mode-btn' + (mode === 'normal' ? ' mode-btn-active' : '');
+    document.getElementById('btn-advanced-mode').className =
+      'mode-btn' + (mode === 'advanced' ? ' mode-btn-active' : '');
+
+    document.getElementById('normal-inputs').style.display  = mode === 'normal'   ? 'block' : 'none';
+    document.getElementById('advanced-inputs').style.display = mode === 'advanced' ? 'block' : 'none';
+
+    const desc = document.getElementById('mode-description');
+    if (mode === 'normal') {
+      desc.textContent = 'Normal Mode: click buttons to select valid training values. Predictions are fully reliable.';
+      // Snap slider values to nearest valid when returning to Normal
+      Object.keys(VALID_VALUES).forEach(key => {
+        const sliderVal = parseFloat(document.getElementById('adv_' + key).value);
+        const snapped = snapToNearest(sliderVal, VALID_VALUES[key]);
+        selectedValues[key] = snapped;
+        selectButton(key, snapped, false);
+      });
+    } else {
+      desc.textContent = 'Advanced Mode: free sliders — any value accepted. Extrapolation Warning expected for most inputs.';
+      // Load current selections into sliders
+      Object.keys(VALID_VALUES).forEach(key => {
+        const slider = document.getElementById('adv_' + key);
+        if (slider) slider.value = selectedValues[key];
+        const display = document.getElementById('val_adv_' + key);
+        if (display) display.textContent = selectedValues[key].toFixed(2);
+      });
+    }
+  }
+
+  // ============================================================
+  // SLIDER LIVE READOUT
+  // ============================================================
+
+  function initSliders() {
+    Object.keys(VALID_VALUES).forEach(key => {
+      const slider = document.getElementById('adv_' + key);
+      const display = document.getElementById('val_adv_' + key);
+      if (!slider || !display) return;
+      slider.value = selectedValues[key];
+      display.textContent = parseFloat(selectedValues[key]).toFixed(2);
+      slider.addEventListener('input', () => {
+        const v = parseFloat(slider.value);
+        display.textContent = v.toFixed(2);
+        selectedValues[key] = v;
+      });
+    });
+  }
+
+  // ============================================================
+  // READ CURRENT INPUT VALUES
+  // ============================================================
+
+  function getInputValues() {
+    if (currentMode === 'normal') {
+      return { ...selectedValues };
+    } else {
+      const vals = {};
+      Object.keys(VALID_VALUES).forEach(key => {
+        const slider = document.getElementById('adv_' + key);
+        vals[key] = slider ? parseFloat(slider.value) : selectedValues[key];
+      });
+      return vals;
+    }
+  }
+
+  // ============================================================
+  // LOAD PRESET VALUES
+  // ============================================================
+
+  function loadPreset(presetKey) {
+    const preset = PRESETS[presetKey];
+    if (!preset) return;
+
+    // Update state
+    Object.assign(selectedValues, preset);
+
+    // Update button groups
+    Object.keys(preset).forEach(key => selectButton(key, preset[key], false));
+
+    // Update sliders
+    Object.keys(preset).forEach(key => {
+      const slider = document.getElementById('adv_' + key);
+      const display = document.getElementById('val_adv_' + key);
+      if (slider) slider.value = preset[key];
+      if (display) display.textContent = parseFloat(preset[key]).toFixed(2);
+    });
+
+    // Switch to Normal Mode and predict
+    switchMode('normal');
+    runPrediction();
+  }
+
+  // ============================================================
+  // PREDICT
+  // ============================================================
+
+  async function runPrediction() {
+    const btn = document.getElementById('predict-btn');
+    btn.textContent = '⏳ Analysing...';
+    btn.className = 'predict-btn loading';
+    btn.disabled = true;
+
+    const inputs = getInputValues();
+
+    try {
+      const response = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inputs)
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        showError(data.error);
+        return;
+      }
+
+      renderResults(data, inputs);
+      btn.textContent = 'PREDICT RISK';
+      btn.className = 'predict-btn';
+      btn.disabled = false;
+
+    } catch (err) {
+      showError('Network error — is the Flask server running?');
+    }
+  }
+
+  function showError(msg) {
+    const btn = document.getElementById('predict-btn');
+    btn.textContent = '⚠ Prediction Failed';
+    btn.className = 'predict-btn error';
+    btn.disabled = false;
+    setTimeout(() => {
+      btn.textContent = 'PREDICT RISK';
+      btn.className = 'predict-btn';
+    }, 3000);
+    console.error('Prediction error:', msg);
+  }
+
+  // ============================================================
+  // RENDER ALL RESULTS
+  // ============================================================
+
+  function renderResults(data, inputs) {
+    // Show results, hide placeholder
+    document.getElementById('results-placeholder').style.display = 'none';
+    document.getElementById('results-container').style.display   = 'block';
+
+    const pct = formatPct(data.xgb_prediction);
+
+    // A — Executive Summary
+    document.getElementById('exec-timestamp').textContent      = 'Last updated: ' + timestamp();
+    document.getElementById('exec-attack-success').textContent = pct;
+    document.getElementById('exec-risk-level').innerHTML       = `<span style="color:${data.risk_color};font-weight:700">${data.risk_label}</span>`;
+    document.getElementById('exec-top-driver').textContent     = data.top_driver;
+    document.getElementById('exec-confidence').textContent     = data.confidence + ' — ' + data.confidence_note;
+    document.getElementById('exec-reliability').innerHTML      = `<span style="color:${data.distribution_color};font-weight:700">${data.distribution_status}</span>`;
+    document.getElementById('exec-recommendation').textContent = data.recommendation;
+
+    // B — Risk gauge
+    document.getElementById('gauge-value').textContent         = pct;
+    document.getElementById('gauge-value').style.color         = data.risk_color;
+    const fill = document.getElementById('gauge-fill');
+    fill.style.width      = Math.min(data.xgb_prediction * 100 / 0.65 * 100, 100) + '%';
+    fill.style.background = data.risk_color;
+    const badge = document.getElementById('risk-badge');
+    badge.textContent    = data.risk_label.toUpperCase();
+    badge.style.background    = data.risk_color + '22';
+    badge.style.color         = data.risk_color;
+    badge.style.border        = '1px solid ' + data.risk_color;
+    badge.style.boxShadow     = '0 0 12px ' + data.risk_color + '66';
+
+    // C — Four model cards
+    document.getElementById('mc-xgb-val').textContent   = formatPct(data.xgb_prediction);
+    document.getElementById('mc-xgb-val').style.color   = data.risk_color;
+    document.getElementById('mc-rf-val').textContent    = formatPct(data.rf_prediction);
+    document.getElementById('mc-conf-val').textContent  = data.confidence;
+    document.getElementById('mc-conf-note').textContent = data.confidence_note;
+
+    const relBadge = document.getElementById('reliability-badge');
+    relBadge.textContent         = data.distribution_status;
+    relBadge.style.background    = data.distribution_color + '22';
+    relBadge.style.color         = data.distribution_color;
+    relBadge.style.border        = '1px solid ' + data.distribution_color;
+    document.getElementById('reliability-note').textContent = data.distribution_note;
+
+    // D — SHAP chart
+    renderShapChart(data.shap_values, data.feature_labels, data.base_value);
+
+    // E — Scenario text
+    document.getElementById('scenario-text').textContent = generateScenarioText(inputs, data.xgb_prediction);
+
+    // F — Research insights
+    renderInsights(inputs, data.xgb_prediction);
+  }
+
+  // ============================================================
+  // SHAP CHART
+  // ============================================================
+
+  function renderShapChart(shapValues, labels, baseValue) {
+    // Destroy existing chart before creating new one
+    if (shapChartInstance) {
+      shapChartInstance.destroy();
+      shapChartInstance = null;
+    }
+
+    // Sort by absolute value descending
+    const combined = labels.map((lbl, i) => ({ label: lbl, value: shapValues[i] }));
+    combined.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+
+    const sortedLabels = combined.map(d => d.label);
+    const sortedValues = combined.map(d => d.value);
+    const colors       = sortedValues.map(v =>
+      v >= 0 ? 'rgba(239,68,68,0.8)' : 'rgba(6,182,212,0.8)'
+    );
+    const borders      = sortedValues.map(v =>
+      v >= 0 ? '#EF4444' : '#06B6D4'
+    );
+
+    const ctx = document.getElementById('shap-chart').getContext('2d');
+    shapChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sortedLabels,
+        datasets: [{
+          data:            sortedValues,
+          backgroundColor: colors,
+          borderColor:     borders,
+          borderWidth:     1,
+          borderRadius:    4,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(4)
+            }
+          },
+          // Data labels
+          datalabels: {
+            display: false  // labels are shown via the tooltip
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#334155' },
+            ticks: {
+              color: '#94A3B8', font: { family: 'Space Mono', size: 10 },
+              callback: v => (v >= 0 ? '+' : '') + v.toFixed(3)
+            }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#F1F5F9', font: { family: 'Inter', size: 11 } }
+          }
+        }
+      }
+    });
+
+    document.getElementById('shap-base-note').textContent =
+      `Base value (average prediction across training data): ${baseValue.toFixed(4)}` +
+      ' — bars show how each feature pushes the prediction above or below this baseline.';
+  }
+
+  // ============================================================
+  // SCENARIO TEXT
+  // ============================================================
+
+  function generateScenarioText(inputs, prediction) {
+    const lines = [];
+
+    // Attacker skill
+    if (inputs.attacker_skill >= 0.9)
+      lines.push(`High-capability attacker (skill=0.9) presents severe risk — SHAP confirms skill dominates all other features (mean |SHAP|=0.0835, 36× more influential than any other input).`);
+    else if (inputs.attacker_skill >= 0.7)
+      lines.push(`Advanced attacker (skill=${inputs.attacker_skill}) creates elevated risk that strong defender configuration can partially offset.`);
+    else
+      lines.push(`Low-skill attacker (skill=${inputs.attacker_skill}) — limited threat potential under current configuration.`);
+
+    // Patch speed
+    if (inputs.defender_patch_speed >= 0.8)
+      lines.push(`Patch Speed is optimised (0.8) — research shows this is the highest-ROI defender investment (r=0.35 with resilience vs Detection Rate r=−0.04).`);
+    else if (inputs.defender_patch_speed < 0.5)
+      lines.push(`Patch Speed is low (${inputs.defender_patch_speed}) — research shows this is the weakest point in the current defender configuration. Upgrading patch speed delivers the strongest resilience improvement.`);
+
+    // Adaptation
+    if (inputs.alpha >= 0.4)
+      lines.push(`Adaptive learning active (alpha=0.4): attacker target fixation rises to ~0.763, though overall compromise count remains largely stable per research findings (8.45→8.46 across alpha levels).`);
+    else if (inputs.alpha === 0)
+      lines.push(`No adaptation (alpha=0): attacker selects targets randomly — equivalent to the non-adaptive V1 baseline.`);
+
+    // Risk level
+    if (prediction >= 0.30)
+      lines.push(`CRITICAL threshold exceeded (${formatPct(prediction)}): immediate security improvements are recommended.`);
+    else if (prediction < 0.10)
+      lines.push(`Risk is well-controlled (${formatPct(prediction)}) under this configuration.`);
+
+    return lines.join(' ');
+  }
+
+  // ============================================================
+  // RESEARCH INSIGHTS
+  // ============================================================
+
+  function renderInsights(inputs, prediction) {
+    const insights = [
+      {
+        badge: 'RQ4 Finding',
+        color: '#06B6D4',
+        title: 'Attacker Skill Dominance',
+        text: `Attacker Skill (current: ${inputs.attacker_skill}) is the most influential variable
+        across all 18,225 runs — mean |SHAP|=0.0835, approximately 36× more than any other feature.
+        ${inputs.attacker_skill >= 0.7
+          ? 'Current configuration represents elevated risk from attacker capability alone.'
+          : 'Low skill limits attacker effectiveness significantly.'}`
+      },
+      {
+        badge: 'RQ1 Finding',
+        color: '#7C3AED',
+        title: 'Adaptation Effect',
+        text: inputs.alpha > 0
+          ? `Adaptive learning active (alpha=${inputs.alpha}). Research showed alpha 0→0.4
+            increased target fixation from 0.312 to 0.763 (+145%), but compromise counts
+            stayed stable (8.45→8.46). Adaptation changed strategy, not outcomes.`
+          : `Adaptation disabled (alpha=0). Attacker uses random target selection —
+            baseline non-adaptive behaviour. Target fixation ≈ 0.312.`
+      },
+      {
+        badge: 'RQ2 Finding',
+        color: '#10B981',
+        title: 'Defender ROI',
+        text: `Detection Rate (${inputs.defender_detection_rate}) vs Patch Speed (${inputs.defender_patch_speed}).
+        Research: Patch Speed (r=0.35 with resilience) substantially outperforms Detection Rate (r=−0.04).
+        ${inputs.defender_patch_speed < inputs.defender_detection_rate
+          ? 'Current config has higher detection than patch speed — rebalance for better security ROI.'
+          : 'Patch speed is correctly prioritised in current configuration.'}`
+      }
+    ];
+
+    const grid = document.getElementById('insights-grid');
+    grid.innerHTML = insights.map(ins => `
+      <div class="insight-card">
+        <div class="insight-badge" style="background:${ins.color}22;color:${ins.color};border:1px solid ${ins.color}">
+          ${ins.badge}
+        </div>
+        <div class="insight-title">${ins.title}</div>
+        <div class="insight-text">${ins.text}</div>
+      </div>
+    `).join('');
+  }
+
+  // ============================================================
+  // RESEARCH FOOTER TOGGLE
+  // ============================================================
+
+  function toggleFooter() {
+    const content = document.getElementById('footer-content');
+    const btn     = document.getElementById('toggle-footer');
+    const isOpen  = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
+    btn.textContent = isOpen
+      ? 'Research Findings Summary ▼'
+      : 'Research Findings Summary ▲';
+  }
+
+  // ============================================================
+  // EVENT LISTENERS
+  // ============================================================
+
+  document.addEventListener('DOMContentLoaded', () => {
+
+    // Build Normal Mode buttons
+    buildButtonGroups();
+
+    // Init sliders
+    initSliders();
+
+    // Mode toggle buttons
+    document.getElementById('btn-normal-mode').addEventListener('click',   () => switchMode('normal'));
+    document.getElementById('btn-advanced-mode').addEventListener('click', () => switchMode('advanced'));
+
+    // Predict button
+    document.getElementById('predict-btn').addEventListener('click', runPrediction);
+
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => loadPreset(btn.dataset.preset));
+    });
+
+    // Footer toggle
+    document.getElementById('toggle-footer').addEventListener('click', toggleFooter);
+
+    // Run default prediction on load so results are visible immediately
+    runPrediction();
+  });
+  </script>
+</body>
+</html>

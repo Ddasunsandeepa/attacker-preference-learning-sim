@@ -1,0 +1,3 @@
+Model,MAE,RMSE,R2,Target
+RandomForest,0.048,0.0646,0.6769,attack-success-rate
+XGBoost,0.0445,0.0603,0.7189,attack-success-rate
